@@ -55,6 +55,16 @@ if __name__ == "__main__":
         val += wavs[:2]
         test += wavs[-2:]
 
+        config_template["spk"] = spk_dict
+        config_template["model"]["n_speakers"] = spk_id
+        config_template["data"]["training_files"] = "/".join(["filelists", speaker, "train.txt"])
+        config_template["data"]["validation_files"] = "/".join(["filelists", speaker, "val.txt"])
+
+        print("Writing configs/speaker/config.json")
+
+        with open("/".join(["configs", speaker, "config.json"]), "w") as f:
+            json.dump(config_template, f, indent=2)
+
     shuffle(train)
     shuffle(val)
     shuffle(test)
@@ -77,9 +87,4 @@ if __name__ == "__main__":
             wavpath = fname
             f.write(wavpath + "\n")
 
-    config_template["spk"] = spk_dict
-    config_template["model"]["n_speakers"] = spk_id
-	
-    print("Writing configs/config.json")
-    with open("configs/config.json", "w") as f:
-        json.dump(config_template, f, indent=2)
+

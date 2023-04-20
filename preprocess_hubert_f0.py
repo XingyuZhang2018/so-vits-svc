@@ -14,12 +14,10 @@ logging.getLogger('numba').setLevel(logging.WARNING)
 import librosa
 import numpy as np
 
-hps = utils.get_hparams_from_file("configs/config.json")
-sampling_rate = hps.data.sampling_rate
-hop_length = hps.data.hop_length
 
 
-def process_one(filename, hmodel):
+
+def process_one(filename, hmodel, sampling_rate, hop_length):
     # print(filename)
     wav, sr = librosa.load(filename, sr=sampling_rate)
     soft_path = filename + ".soft.pt"
@@ -35,20 +33,25 @@ def process_one(filename, hmodel):
         np.save(f0_path, f0)
 
 
-def process_batch(filenames):
+def process_batch(filenames, sampling_rate, hop_length):
     print("Loading hubert for content...")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     hmodel = utils.get_hubert_model().to(device)
     print("Loaded hubert.")
     for filename in tqdm(filenames):
-        process_one(filename, hmodel)
+        process_one(filename, hmodel, sampling_rate, hop_length)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--in_dir", type=str, default="dataset/44k", help="path to input dir")
-
+    parser.add_argument("--s", type=str, help="speaker name (e.g. 'p280')")
     args = parser.parse_args()
+
+    hps = utils.get_hparams_from_file("/".join(["configs", args.s, "config.json"]))
+    sampling_rate = hps.data.sampling_rate
+    hop_length = hps.data.hop_length
+
     filenames = glob(f'{args.in_dir}/*/*.wav', recursive=True)  # [:10]
     shuffle(filenames)
     multiprocessing.set_start_method('spawn',force=True)
@@ -57,6 +60,6 @@ if __name__ == "__main__":
     chunk_size = int(math.ceil(len(filenames) / num_processes))
     chunks = [filenames[i:i + chunk_size] for i in range(0, len(filenames), chunk_size)]
     print([len(c) for c in chunks])
-    processes = [multiprocessing.Process(target=process_batch, args=(chunk,)) for chunk in chunks]
+    processes = [multiprocessing.Process(target=process_batch, args=(chunk, sampling_rate, hop_length)) for chunk in chunks]
     for p in processes:
         p.start()
